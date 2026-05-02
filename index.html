@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Web GIS Usaha</title>
+  <title>Web GIS Usaha Multi Layer (Fixed)</title>
   <meta charset="utf-8" />
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
@@ -21,7 +21,7 @@
 
     .filter-grid {
       display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+      grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
       gap:10px;
     }
 
@@ -51,39 +51,88 @@
       padding:6px;
     }
 
-    th {
-      background:#0984e3;
-      color:white;
-    }
+    th { background:#0984e3; color:white; }
 
     tr:hover { background:#f1f1f1; cursor:pointer; }
+
+    /* WA BUTTON */
+    .wa-btn{
+      display:inline-block;
+      padding:5px 10px;
+      background:#25D366;
+      color:white;
+      border-radius:5px;
+      text-decoration:none;
+      font-size:12px;
+      font-weight:bold;
+    }
+
+    /* MAP BUTTON */
+    .map-btn{
+      display:inline-block;
+      padding:5px 8px;
+      background:#e67e22;
+      color:white;
+      border-radius:5px;
+      text-decoration:none;
+      font-size:12px;
+      font-weight:bold;
+      margin-left:4px;
+    }
+
+    /* CEK ICON */
+    .cek-icon{
+      font-size:16px;
+      text-align:center;
+    }
+
+    /* IDSBR BADGE */
+    .idsbr-badge{
+      display:inline-block;
+      padding:3px 8px;
+      background:#6c5ce7;
+      color:white;
+      border-radius:12px;
+      font-size:12px;
+      font-weight:bold;
+      min-width:30px;
+      text-align:center;
+    }
+
   </style>
 </head>
+
 <body>
 
-<header>📍 Web GIS Usaha (Live Google Sheets)</header>
+<header>📍 Web GIS Usaha Multi Layer (Fixed)</header>
 
 <div class="container">
 
-  <!-- FILTER -->
   <div class="filter-box">
     <div class="filter-grid">
+
+      <select id="layerSelect" onchange="gantiLayer()">
+        <option value="desa">Layer Desa</option>
+        <option value="sls">Layer SLS</option>
+        <option value="subsls">Layer Sub SLS</option>
+      </select>
+
       <select id="usaha"><option value="all">Usaha</option></select>
       <select id="kreatif"><option value="all">Kreatif</option></select>
       <select id="visibilitas"><option value="all">Visibilitas</option></select>
       <select id="produksi"><option value="all">Produksi</option></select>
       <select id="distribusi"><option value="all">Distribusi</option></select>
       <select id="produk"><option value="all">Produk Final</option></select>
+
     </div>
+
     <br>
     <button onclick="resetFilter()">Reset</button>
     Jumlah data: <b id="jumlah">0</b>
   </div>
 
-  <!-- MAP -->
   <div id="map"></div>
 
-  <!-- TABLE -->
   <table>
     <thead>
       <tr>
@@ -91,6 +140,10 @@
         <th>Usaha</th>
         <th>KBLI</th>
         <th>Alamat</th>
+        <th>WA</th>
+        <th>Maps</th>
+        <th>Cek</th>
+        <th>IDSBR</th>
       </tr>
     </thead>
     <tbody id="tabelData"></tbody>
@@ -102,15 +155,15 @@
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
 <script>
-// ================= MAP =================
+
 var map = L.map('map').setView([-8.54,115.40], 12);
 var usahaLayer = L.layerGroup().addTo(map);
 var geoLayer;
 let allData = [];
+let filteredData = [];
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-// ================= FIELD =================
 const fieldMap = {
   usaha: "Usaha",
   kreatif: "Kreatif",
@@ -120,15 +173,21 @@ const fieldMap = {
   produk: "Produk final"
 };
 
-// ================= LOAD GOOGLE SHEET =================
+const norm = v => (v || "").toLowerCase().trim();
+
 Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1vTdCuzkPmo5X2upjTiZmE7JN98H4-1RL0XmT2AotLnBMBmyDPDJ4iKxDjQ6wnrTxSaEJhdIq6ieRVRP/pub?gid=0&single=true&output=csv", {
   download: true,
   header: true,
   complete: function(results) {
 
-    console.log(results.data);
+    allData = results.data
+      .filter(d => d.Nama && d.Lat && d.Long)
+      .map(d => {
+        Object.keys(d).forEach(k => d[k] = (d[k] || "").trim());
+        return d;
+      });
 
-    allData = results.data.filter(d => d.Nama && d.Lat && d.Long);
+    filteredData = allData;
 
     isiDropdown(allData, fieldMap.usaha, "usaha");
     isiDropdown(allData, fieldMap.kreatif, "kreatif");
@@ -141,72 +200,142 @@ Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1vTdCuzkPmo5X2upjTiZm
   }
 });
 
-// ================= LOAD GEOJSON =================
-fetch("desa.geojson")
-  .then(res => res.json())
-  .then(data => {
+function gantiLayer(){
 
-    geoLayer = L.geoJSON(data, {
+  let pilihan = document.getElementById("layerSelect").value;
+  let file = pilihan + ".geojson";
 
-      style: {
-        color: "purple",
-        weight: 1,
-        fillOpacity: 0.1
-      },
+  if(geoLayer){ map.removeLayer(geoLayer); }
 
-      onEachFeature: function(feature, layer){
+  fetch(file)
+    .then(res => res.json())
+    .then(data => {
 
-        let p = feature.properties;
+      geoLayer = L.geoJSON(data, {
+        style: { color:"purple", weight:1, fillOpacity:0.1 },
 
-        let kec = p.nmkec || "-";
-        let desa = p.nmdesa || "-";
-        let sls = p.nmsls || "-";
+        onEachFeature: function(feature, layer){
 
-        layer.bindPopup(`
-          <b>Kecamatan:</b> ${kec}<br>
-          <b>Desa:</b> ${desa}<br>
-          <b>SLS:</b> ${sls}
-        `);
+          let p = feature.properties;
+          let kec = p.nmkec || "-";
+          let desa = p.nmdesa || "-";
 
-        layer.on({
-          mouseover: e => e.target.setStyle({weight:2,color:"orange"}),
-          mouseout: e => geoLayer.resetStyle(e.target)
-        });
-      }
+          layer.bindPopup(`<b>Kecamatan:</b> ${kec}<br><b>Desa:</b> ${desa}`);
 
-    }).addTo(map);
+          layer.on("click", function(){
 
-    map.fitBounds(geoLayer.getBounds());
+            document.querySelectorAll("select").forEach(s => s.value="all");
+
+            let hasil = allData.filter(d =>
+              norm(d.Kecamatan) === norm(kec) &&
+              norm(d.Desa) === norm(desa)
+            );
+
+            filteredData = hasil;
+            updateSemua(hasil);
+          });
+
+        }
+      }).addTo(map);
+
+      map.fitBounds(geoLayer.getBounds());
+    });
+}
+
+function applyFilter(){
+
+  let filters = [];
+
+  Object.keys(fieldMap).forEach(id => {
+    let val = document.getElementById(id).value;
+    if(val !== "all") filters.push({field: fieldMap[id], val});
   });
 
-// ================= UPDATE =================
+  let filtered = allData.filter(d => {
+    return filters.every(f => norm(d[f.field]) === norm(f.val));
+  });
+
+  filteredData = filtered;
+  updateSemua(filtered);
+}
+
 function updateSemua(data){
   tampilkanMarker(data);
   tampilkanTabel(data);
   document.getElementById("jumlah").innerText = data.length;
 }
 
-// ================= MARKER =================
 function tampilkanMarker(data) {
   usahaLayer.clearLayers();
 
   data.forEach(item => {
-    let marker = L.marker([
-      parseFloat(item.Lat),
-      parseFloat(item.Long)
-    ])
-    .bindPopup(`<b>${item.Nama}</b><br>${item.Usaha}`);
+
+    let lat = parseFloat(item.Lat);
+    let lng = parseFloat(item.Long);
+
+    let wa = item["Hubungi"] || "";
+    let maps = item["Maps"] || "";
+    let cek = item["Cek"] || "-";
+    let idsbr = item["IDSBR"] || "-";
+
+    let waLink = wa
+      ? `<a class="wa-btn" href="https://wa.me/${wa.replace(/[^0-9]/g,'')}" target="_blank">WA</a>`
+      : "-";
+
+    let mapLink = maps
+      ? `<a class="map-btn" href="${maps}" target="_blank">📍</a>`
+      : "-";
+
+    let direction = maps
+      ? `<a class="map-btn" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank">➡️</a>`
+      : "";
+
+    let popup = `
+      <b>${item.Nama}</b><br>
+      ${item.Usaha}<br><br>
+      ${item.Alamat}<br><br>
+
+      <b>Cek:</b> ${cek}<br>
+      <b>IDSBR:</b> ${idsbr}<br><br>
+
+      ${waLink} ${mapLink} ${direction}
+    `;
+
+    let marker = L.circleMarker([lat, lng], {
+      radius: 5,
+      fillColor: "#0984e3",
+      color: "#fff",
+      weight: 1,
+      fillOpacity: 0.9
+    }).bindPopup(popup);
 
     usahaLayer.addLayer(marker);
   });
 }
 
-// ================= TABLE =================
 function tampilkanTabel(data){
   let tbody = document.getElementById("tabelData");
   tbody.innerHTML = "";
 
   data.forEach(d => {
+
+    let wa = d["Hubungi"] || "";
+    let maps = d["Maps"] || "";
+
+    let cekIcon = (d["Cek"] && d["Cek"].toLowerCase() !== "tidak") ? "✅" : "❌";
+
+    let idsbrBadge = d["IDSBR"]
+      ? `<span class="idsbr-badge">${d["IDSBR"]}</span>`
+      : "-";
+
+    let waLink = wa
+      ? `<a class="wa-btn" href="https://wa.me/${wa.replace(/[^0-9]/g,'')}" target="_blank">WA</a>`
+      : "-";
+
+    let mapLink = maps
+      ? `<a class="map-btn" href="${maps}" target="_blank">📍</a>`
+      : "-";
+
     let row = document.createElement("tr");
 
     row.innerHTML = `
@@ -214,46 +343,23 @@ function tampilkanTabel(data){
       <td>${d.Usaha}</td>
       <td>${d.KBLI || "-"}</td>
       <td>${d.Alamat}</td>
+      <td>${waLink}</td>
+      <td>${mapLink}</td>
+      <td class="cek-icon">${cekIcon}</td>
+      <td>${idsbrBadge}</td>
     `;
 
     row.onclick = () => map.setView([d.Lat, d.Long], 15);
-
     tbody.appendChild(row);
   });
 }
 
-// ================= FILTER =================
-document.querySelectorAll("select").forEach(s => {
-  s.addEventListener("change", applyFilter);
-});
-
-function applyFilter(){
-  let usaha = document.getElementById("usaha").value;
-  let kreatif = document.getElementById("kreatif").value;
-  let visibilitas = document.getElementById("visibilitas").value;
-  let produksi = document.getElementById("produksi").value;
-  let distribusi = document.getElementById("distribusi").value;
-  let produk = document.getElementById("produk").value;
-
-  let filtered = allData.filter(d => {
-    return (usaha === "all" || d[fieldMap.usaha] === usaha) &&
-           (kreatif === "all" || d[fieldMap.kreatif] === kreatif) &&
-           (visibilitas === "all" || d[fieldMap.visibilitas] === visibilitas) &&
-           (produksi === "all" || d[fieldMap.produksi] === produksi) &&
-           (distribusi === "all" || d[fieldMap.distribusi] === distribusi) &&
-           (produk === "all" || d[fieldMap.produk] === produk);
-  });
-
-  updateSemua(filtered);
-}
-
-// ================= RESET =================
 function resetFilter(){
   document.querySelectorAll("select").forEach(s => s.value="all");
+  filteredData = allData;
   updateSemua(allData);
 }
 
-// ================= DROPDOWN =================
 function isiDropdown(data, field, id){
   let set = new Set();
   data.forEach(d => { if(d[field]) set.add(d[field]); });
@@ -267,6 +373,13 @@ function isiDropdown(data, field, id){
     select.appendChild(opt);
   });
 }
+
+document.querySelectorAll("select").forEach(s => {
+  s.addEventListener("change", applyFilter);
+});
+
+gantiLayer();
+
 </script>
 
 </body>
