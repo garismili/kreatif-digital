@@ -55,7 +55,6 @@
 
     tr:hover { background:#f1f1f1; cursor:pointer; }
 
-    /* WA BUTTON */
     .wa-btn{
       display:inline-block;
       padding:5px 10px;
@@ -67,7 +66,6 @@
       font-weight:bold;
     }
 
-    /* MAP BUTTON */
     .map-btn{
       display:inline-block;
       padding:5px 8px;
@@ -80,13 +78,8 @@
       margin-left:4px;
     }
 
-    /* CEK ICON */
-    .cek-icon{
-      font-size:16px;
-      text-align:center;
-    }
+    .cek-icon{ font-size:16px; text-align:center; }
 
-    /* IDSBR BADGE */
     .idsbr-badge{
       display:inline-block;
       padding:3px 8px;
@@ -124,6 +117,9 @@
       <select id="distribusi"><option value="all">Distribusi</option></select>
       <select id="produk"><option value="all">Produk Final</option></select>
 
+      <!-- ✅ TAMBAHAN FILTER -->
+      <select id="sumber"><option value="all">Sumber</option></select>
+
     </div>
 
     <br>
@@ -140,6 +136,7 @@
         <th>Usaha</th>
         <th>KBLI</th>
         <th>Alamat</th>
+        <th>Kontak</th>
         <th>WA</th>
         <th>Maps</th>
         <th>Cek</th>
@@ -170,7 +167,8 @@ const fieldMap = {
   visibilitas: "Visibilitas",
   produksi: "Produksi",
   distribusi: "Distribusi",
-  produk: "Produk final"
+  produk: "Produk final",
+  sumber: "Sumber"
 };
 
 const norm = v => (v || "").toLowerCase().trim();
@@ -195,6 +193,7 @@ Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1vTdCuzkPmo5X2upjTiZm
     isiDropdown(allData, fieldMap.produksi, "produksi");
     isiDropdown(allData, fieldMap.distribusi, "distribusi");
     isiDropdown(allData, fieldMap.produk, "produk");
+    isiDropdown(allData, fieldMap.sumber, "sumber");
 
     updateSemua(allData);
   }
@@ -321,6 +320,7 @@ function tampilkanTabel(data){
 
     let wa = d["Hubungi"] || "";
     let maps = d["Maps"] || "";
+    let kontak = d["Kontak"] || "-";
 
     let cekIcon = (d["Cek"] && d["Cek"].toLowerCase() !== "tidak") ? "✅" : "❌";
 
@@ -343,6 +343,7 @@ function tampilkanTabel(data){
       <td>${d.Usaha}</td>
       <td>${d.KBLI || "-"}</td>
       <td>${d.Alamat}</td>
+      <td>${kontak}</td>
       <td>${waLink}</td>
       <td>${mapLink}</td>
       <td class="cek-icon">${cekIcon}</td>
