@@ -61,7 +61,7 @@
 </head>
 <body>
 
-<header>📍 Web GIS Usaha</header>
+<header>📍 Web GIS Usaha (Live Google Sheets)</header>
 
 <div class="container">
 
@@ -110,7 +110,7 @@ let allData = [];
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-// ================= FIELD CSV =================
+// ================= FIELD =================
 const fieldMap = {
   usaha: "Usaha",
   kreatif: "Kreatif",
@@ -120,11 +120,13 @@ const fieldMap = {
   produk: "Produk final"
 };
 
-// ================= LOAD CSV =================
-Papa.parse("inovasi.csv", {
+// ================= LOAD GOOGLE SHEET =================
+Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1vTdCuzkPmo5X2upjTiZmE7JN98H4-1RL0XmT2AotLnBMBmyDPDJ4iKxDjQ6wnrTxSaEJhdIq6ieRVRP/pub?gid=0&single=true&output=csv", {
   download: true,
   header: true,
   complete: function(results) {
+
+    console.log(results.data);
 
     allData = results.data.filter(d => d.Nama && d.Lat && d.Long);
 
@@ -140,7 +142,7 @@ Papa.parse("inovasi.csv", {
 });
 
 // ================= LOAD GEOJSON =================
-fetch("subsls.geojson")
+fetch("desa.geojson")
   .then(res => res.json())
   .then(data => {
 
