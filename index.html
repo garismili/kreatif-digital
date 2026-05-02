@@ -138,11 +138,20 @@
         <th>Kontak</th>
         <th>WA</th>
         <th>Maps</th>
+
+        <!-- TAMBAHAN KOLOM -->
+        <th>Kreatif</th>
+        <th>Visibilitas</th>
+        <th>Produksi</th>
+        <th>Distribusi</th>
+        <th>Produk</th>
+
         <th>Cek</th>
         <th>IDSBR</th>
         <th>Media</th>
       </tr>
     </thead>
+
     <tbody id="tabelData"></tbody>
   </table>
 
@@ -350,8 +359,17 @@ function tampilkanTabel(data){
       <td>${d.KBLI || "-"}</td>
       <td>${d.Alamat}</td>
       <td>${kontak}</td>
+
       <td>${wa ? `<a class="wa-btn" href="https://wa.me/${wa.replace(/[^0-9]/g,'')}" target="_blank">WA</a>` : "-"}</td>
       <td>${maps ? `<a class="map-btn" href="${maps}" target="_blank">📍</a>` : "-"}</td>
+
+      <!-- TAMBAHAN KOLOM -->
+      <td>${d.Kreatif || "-"}</td>
+      <td>${d.Visibilitas || "-"}</td>
+      <td>${d.Produksi || "-"}</td>
+      <td>${d.Distribusi || "-"}</td>
+      <td>${d.Produk || "-"}</td>
+
       <td class="cek-icon">${cekIcon}</td>
       <td>${idsbrBadge}</td>
       <td>${iconMediaLink(d["Media"])}</td>
