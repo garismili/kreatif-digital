@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Web GIS Usaha</title>
+  <meta charset="utf-8" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+
+  <style>
+    body { margin:0; font-family:Arial; background:#f5f6fa; }
+    header { background:#2f3640; color:white; padding:15px; font-size:20px; }
+
+    .container { padding:15px; }
+
+    .filter-box {
+      background:white;
+      padding:15px;
+      border-radius:10px;
+      margin-bottom:10px;
+    }
+
+    .filter-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+      gap:10px;
+    }
+
+    select, button {
+      padding:6px;
+      border-radius:5px;
+      border:1px solid #ccc;
+    }
+
+    button { background:#0984e3; color:white; cursor:pointer; }
+
+    #map {
+      height:400px;
+      border-radius:10px;
+      margin-bottom:10px;
+    }
+
+    table {
+      width:100%;
+      border-collapse:collapse;
+      font-size:13px;
+      background:white;
+    }
+
+    th, td {
+      border:1px solid #ddd;
+      padding:6px;
+    }
+
+    th {
+      background:#0984e3;
+      color:white;
+    }
+
+    tr:hover { background:#f1f1f1; cursor:pointer; }
+  </style>
+</head>
+<body>
+
+<header>📍 Web GIS Usaha</header>
+
+<div class="container">
+
+  <!-- FILTER -->
+  <div class="filter-box">
+    <div class="filter-grid">
+      <select id="usaha"><option value="all">Usaha</option></select>
+      <select id="kreatif"><option value="all">Kreatif</option></select>
+      <select id="visibilitas"><option value="all">Visibilitas</option></select>
+      <select id="produksi"><option value="all">Produksi</option></select>
+      <select id="distribusi"><option value="all">Distribusi</option></select>
+      <select id="produk"><option value="all">Produk Final</option></select>
+    </div>
+    <br>
+    <button onclick="resetFilter()">Reset</button>
+    Jumlah data: <b id="jumlah">0</b>
+  </div>
+
+  <!-- MAP -->
+  <div id="map"></div>
+
+  <!-- TABLE -->
+  <table>
+    <thead>
+      <tr>
+        <th>Nama</th>
+        <th>Usaha</th>
+        <th>KBLI</th>
+        <th>Alamat</th>
+      </tr>
+    </thead>
+    <tbody id="tabelData"></tbody>
+  </table>
+
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<script>
+// ================= MAP =================
+var map = L.map('map').setView([-8.54,115.40], 12);
+var usahaLayer = L.layerGroup().addTo(map);
+var geoLayer;
+let allData = [];
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+// ================= FIELD CSV =================
+const fieldMap = {
+  usaha: "Usaha",
+  kreatif: "Kreatif",
+  visibilitas: "Visibilitas",
+  produksi: "Produksi",
+  distribusi: "Distribusi",
+  produk: "Produk final"
+};
+
+// ================= LOAD CSV =================
+Papa.parse("inovasi.csv", {
+  download: true,
+  header: true,
+  complete: function(results) {
+
+    allData = results.data.filter(d => d.Nama && d.Lat && d.Long);
+
+    isiDropdown(allData, fieldMap.usaha, "usaha");
+    isiDropdown(allData, fieldMap.kreatif, "kreatif");
+    isiDropdown(allData, fieldMap.visibilitas, "visibilitas");
+    isiDropdown(allData, fieldMap.produksi, "produksi");
+    isiDropdown(allData, fieldMap.distribusi, "distribusi");
+    isiDropdown(allData, fieldMap.produk, "produk");
+
+    updateSemua(allData);
+  }
+});
+
+// ================= LOAD GEOJSON =================
+fetch("subsls.geojson")
+  .then(res => res.json())
+  .then(data => {
+
+    geoLayer = L.geoJSON(data, {
+
+      style: {
+        color: "purple",
+        weight: 1,
+        fillOpacity: 0.1
+      },
+
+      onEachFeature: function(feature, layer){
+
+        let p = feature.properties;
+
+        let kec = p.nmkec || "-";
+        let desa = p.nmdesa || "-";
+        let sls = p.nmsls || "-";
+
+        layer.bindPopup(`
+          <b>Kecamatan:</b> ${kec}<br>
+          <b>Desa:</b> ${desa}<br>
+          <b>SLS:</b> ${sls}
+        `);
+
+        layer.on({
+          mouseover: e => e.target.setStyle({weight:2,color:"orange"}),
+          mouseout: e => geoLayer.resetStyle(e.target)
+        });
+      }
+
+    }).addTo(map);
+
+    map.fitBounds(geoLayer.getBounds());
+  });
+
+// ================= UPDATE =================
+function updateSemua(data){
+  tampilkanMarker(data);
+  tampilkanTabel(data);
+  document.getElementById("jumlah").innerText = data.length;
+}
+
+// ================= MARKER =================
+function tampilkanMarker(data) {
+  usahaLayer.clearLayers();
+
+  data.forEach(item => {
+    let marker = L.marker([
+      parseFloat(item.Lat),
+      parseFloat(item.Long)
+    ])
+    .bindPopup(`<b>${item.Nama}</b><br>${item.Usaha}`);
+
+    usahaLayer.addLayer(marker);
+  });
+}
+
+// ================= TABLE =================
+function tampilkanTabel(data){
+  let tbody = document.getElementById("tabelData");
+  tbody.innerHTML = "";
+
+  data.forEach(d => {
+    let row = document.createElement("tr");
+
+    row.innerHTML = `
+      <td>${d.Nama}</td>
+      <td>${d.Usaha}</td>
+      <td>${d.KBLI || "-"}</td>
+      <td>${d.Alamat}</td>
+    `;
+
+    row.onclick = () => map.setView([d.Lat, d.Long], 15);
+
+    tbody.appendChild(row);
+  });
+}
+
+// ================= FILTER =================
+document.querySelectorAll("select").forEach(s => {
+  s.addEventListener("change", applyFilter);
+});
+
+function applyFilter(){
+  let usaha = document.getElementById("usaha").value;
+  let kreatif = document.getElementById("kreatif").value;
+  let visibilitas = document.getElementById("visibilitas").value;
+  let produksi = document.getElementById("produksi").value;
+  let distribusi = document.getElementById("distribusi").value;
+  let produk = document.getElementById("produk").value;
+
+  let filtered = allData.filter(d => {
+    return (usaha === "all" || d[fieldMap.usaha] === usaha) &&
+           (kreatif === "all" || d[fieldMap.kreatif] === kreatif) &&
+           (visibilitas === "all" || d[fieldMap.visibilitas] === visibilitas) &&
+           (produksi === "all" || d[fieldMap.produksi] === produksi) &&
+           (distribusi === "all" || d[fieldMap.distribusi] === distribusi) &&
+           (produk === "all" || d[fieldMap.produk] === produk);
+  });
+
+  updateSemua(filtered);
+}
+
+// ================= RESET =================
+function resetFilter(){
+  document.querySelectorAll("select").forEach(s => s.value="all");
+  updateSemua(allData);
+}
+
+// ================= DROPDOWN =================
+function isiDropdown(data, field, id){
+  let set = new Set();
+  data.forEach(d => { if(d[field]) set.add(d[field]); });
+
+  let select = document.getElementById(id);
+
+  set.forEach(val => {
+    let opt = document.createElement("option");
+    opt.value = val;
+    opt.text = val;
+    select.appendChild(opt);
+  });
+}
+</script>
+
+</body>
+</html>
