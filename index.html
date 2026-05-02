@@ -91,7 +91,6 @@
       min-width:30px;
       text-align:center;
     }
-
   </style>
 </head>
 
@@ -141,6 +140,7 @@
         <th>Maps</th>
         <th>Cek</th>
         <th>IDSBR</th>
+        <th>Media</th>
       </tr>
     </thead>
     <tbody id="tabelData"></tbody>
@@ -342,14 +342,6 @@ function tampilkanTabel(data){
       ? `<span class="idsbr-badge">${d["IDSBR"]}</span>`
       : "-";
 
-    let waLink = wa
-      ? `<a class="wa-btn" href="https://wa.me/${wa.replace(/[^0-9]/g,'')}" target="_blank">WA</a>`
-      : "-";
-
-    let mapLink = maps
-      ? `<a class="map-btn" href="${maps}" target="_blank">📍</a>`
-      : "-";
-
     let row = document.createElement("tr");
 
     row.innerHTML = `
@@ -358,15 +350,41 @@ function tampilkanTabel(data){
       <td>${d.KBLI || "-"}</td>
       <td>${d.Alamat}</td>
       <td>${kontak}</td>
-      <td>${waLink}</td>
-      <td>${mapLink}</td>
+      <td>${wa ? `<a class="wa-btn" href="https://wa.me/${wa.replace(/[^0-9]/g,'')}" target="_blank">WA</a>` : "-"}</td>
+      <td>${maps ? `<a class="map-btn" href="${maps}" target="_blank">📍</a>` : "-"}</td>
       <td class="cek-icon">${cekIcon}</td>
       <td>${idsbrBadge}</td>
+      <td>${iconMediaLink(d["Media"])}</td>
     `;
 
     row.onclick = () => map.setView([d.Lat, d.Long], 15);
     tbody.appendChild(row);
   });
+}
+
+function iconMedia(val){
+  if(!val) return "-";
+
+  let v = val.toLowerCase();
+
+  if(v.includes("youtube") || v.includes("youtu")) return "📺";
+  if(v.includes("instagram") || v.includes("ig")) return "📷";
+  if(v.includes("facebook") || v.includes("fb")) return "📘";
+  if(v.includes("tiktok")) return "🎵";
+  if(v.includes("whatsapp") || v.includes("wa")) return "💬";
+  if(v.includes("website") || v.includes("http")) return "🌐";
+
+  return "🔗";
+}
+
+function iconMediaLink(val){
+  if(!val) return "-";
+
+  let icon = iconMedia(val);
+
+  if(icon === "🔗") return icon;
+
+  return `<a href="${val}" target="_blank" style="text-decoration:none">${icon}</a>`;
 }
 
 function resetFilter(){
