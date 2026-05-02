@@ -91,6 +91,16 @@
       min-width:30px;
       text-align:center;
     }
+
+    /* ===== HANYA INI YANG DIUBAH ===== */
+    .kesimpulan-highlight{
+      background:#00b894;  /* warna baru */
+      color:white;
+      padding:3px 6px;
+      border-radius:6px;
+      font-weight:bold;
+      display:inline-block;
+    }
   </style>
 </head>
 
@@ -118,6 +128,7 @@
       <select id="distribusi"><option value="all">Distribusi</option></select>
       <select id="produk"><option value="all">Produk Final</option></select>
       <select id="sumber"><option value="all">Sumber</option></select>
+      <select id="kesimpulan"><option value="all">Kesimpulan</option></select>
 
     </div>
 
@@ -139,7 +150,6 @@
         <th>WA</th>
         <th>Maps</th>
 
-        <!-- TAMBAHAN KOLOM -->
         <th>Kreatif</th>
         <th>Visibilitas</th>
         <th>Produksi</th>
@@ -149,6 +159,7 @@
         <th>Cek</th>
         <th>IDSBR</th>
         <th>Media</th>
+        <th>Kesimpulan</th>
       </tr>
     </thead>
 
@@ -178,7 +189,8 @@ const fieldMap = {
   produksi: "Produksi",
   distribusi: "Distribusi",
   produk: "Produk",
-  sumber: "Sumber"
+  sumber: "Sumber",
+  kesimpulan: "Kesimpulan"
 };
 
 const norm = v => (v || "").toLowerCase().trim();
@@ -204,6 +216,7 @@ Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1vTdCuzkPmo5X2upjTiZm
     isiDropdown(allData, fieldMap.distribusi, "distribusi");
     isiDropdown(allData, fieldMap.produk, "produk");
     isiDropdown(allData, fieldMap.sumber, "sumber");
+    isiDropdown(allData, fieldMap.kesimpulan, "kesimpulan");
 
     updateSemua(allData);
   }
@@ -351,6 +364,25 @@ function tampilkanTabel(data){
       ? `<span class="idsbr-badge">${d["IDSBR"]}</span>`
       : "-";
 
+    let kes = (d["Kesimpulan"] || "").toLowerCase();
+
+let warna = "#b2bec3"; // default abu
+
+if (kes.includes("digital")) warna = "#00b894";        // hijau
+else if (kes.includes("semi")) warna = "#fdcb6e";      // kuning
+else if (kes.includes("konvensional")) warna = "#e17055"; // merah
+
+let kesimpulan = d["Kesimpulan"]
+  ? `<span style="
+      background:${warna};
+      color:white;
+      padding:3px 6px;
+      border-radius:6px;
+      font-weight:bold;
+      display:inline-block;
+    ">${d["Kesimpulan"]}</span>`
+  : "-";
+
     let row = document.createElement("tr");
 
     row.innerHTML = `
@@ -363,7 +395,6 @@ function tampilkanTabel(data){
       <td>${wa ? `<a class="wa-btn" href="https://wa.me/${wa.replace(/[^0-9]/g,'')}" target="_blank">WA</a>` : "-"}</td>
       <td>${maps ? `<a class="map-btn" href="${maps}" target="_blank">📍</a>` : "-"}</td>
 
-      <!-- TAMBAHAN KOLOM -->
       <td>${d.Kreatif || "-"}</td>
       <td>${d.Visibilitas || "-"}</td>
       <td>${d.Produksi || "-"}</td>
@@ -373,6 +404,7 @@ function tampilkanTabel(data){
       <td class="cek-icon">${cekIcon}</td>
       <td>${idsbrBadge}</td>
       <td>${iconMediaLink(d["Media"])}</td>
+      <td>${kesimpulan}</td>
     `;
 
     row.onclick = () => map.setView([d.Lat, d.Long], 15);
