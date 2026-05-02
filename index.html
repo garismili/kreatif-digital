@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Web GIS Usaha Multi Layer</title>
+  <title>Web GIS Usaha</title>
   <meta charset="utf-8" />
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
@@ -21,7 +21,7 @@
 
     .filter-grid {
       display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+      grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
       gap:10px;
     }
 
@@ -51,27 +51,23 @@
       padding:6px;
     }
 
-    th { background:#0984e3; color:white; }
+    th {
+      background:#0984e3;
+      color:white;
+    }
 
     tr:hover { background:#f1f1f1; cursor:pointer; }
   </style>
 </head>
 <body>
 
-<header>📍 Web GIS Usaha Multi Layer</header>
+<header>📍 Web GIS Usaha (Live Google Sheets)</header>
 
 <div class="container">
 
   <!-- FILTER -->
   <div class="filter-box">
     <div class="filter-grid">
-
-      <select id="layerSelect" onchange="gantiLayer()">
-        <option value="desa">Layer Desa</option>
-        <option value="sls">Layer SLS</option>
-        <option value="subsls">Layer Sub SLS</option>
-      </select>
-
       <select id="usaha"><option value="all">Usaha</option></select>
       <select id="kreatif"><option value="all">Kreatif</option></select>
       <select id="visibilitas"><option value="all">Visibilitas</option></select>
@@ -79,7 +75,6 @@
       <select id="distribusi"><option value="all">Distribusi</option></select>
       <select id="produk"><option value="all">Produk Final</option></select>
     </div>
-
     <br>
     <button onclick="resetFilter()">Reset</button>
     Jumlah data: <b id="jumlah">0</b>
@@ -112,7 +107,6 @@ var map = L.map('map').setView([-8.54,115.40], 12);
 var usahaLayer = L.layerGroup().addTo(map);
 var geoLayer;
 let allData = [];
-let filteredData = [];
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
@@ -132,8 +126,9 @@ Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1vTdCuzkPmo5X2upjTiZm
   header: true,
   complete: function(results) {
 
+    console.log(results.data);
+
     allData = results.data.filter(d => d.Nama && d.Lat && d.Long);
-    filteredData = allData;
 
     isiDropdown(allData, fieldMap.usaha, "usaha");
     isiDropdown(allData, fieldMap.kreatif, "kreatif");
@@ -146,64 +141,43 @@ Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1vTdCuzkPmo5X2upjTiZm
   }
 });
 
-// ================= LAYER SWITCH =================
-function gantiLayer(){
+// ================= LOAD GEOJSON =================
+fetch("desa.geojson")
+  .then(res => res.json())
+  .then(data => {
 
-  let pilihan = document.getElementById("layerSelect").value;
-  let file = pilihan + ".geojson";
+    geoLayer = L.geoJSON(data, {
 
-  if(geoLayer){
-    map.removeLayer(geoLayer);
-  }
+      style: {
+        color: "purple",
+        weight: 1,
+        fillOpacity: 0.1
+      },
 
-  fetch(file)
-    .then(res => res.json())
-    .then(data => {
+      onEachFeature: function(feature, layer){
 
-      geoLayer = L.geoJSON(data, {
+        let p = feature.properties;
 
-        style: {
-          color: "purple",
-          weight: 1,
-          fillOpacity: 0.1
-        },
+        let kec = p.nmkec || "-";
+        let desa = p.nmdesa || "-";
+        let sls = p.nmsls || "-";
 
-        onEachFeature: function(feature, layer){
+        layer.bindPopup(`
+          <b>Kecamatan:</b> ${kec}<br>
+          <b>Desa:</b> ${desa}<br>
+          <b>SLS:</b> ${sls}
+        `);
 
-          let p = feature.properties;
+        layer.on({
+          mouseover: e => e.target.setStyle({weight:2,color:"orange"}),
+          mouseout: e => geoLayer.resetStyle(e.target)
+        });
+      }
 
-          let kec = p.nmkec || "-";
-          let desa = p.nmdesa || "-";
-          let sls = p.nmsls || "-";
+    }).addTo(map);
 
-          layer.bindPopup(`
-            <b>Kecamatan:</b> ${kec}<br>
-            <b>Desa:</b> ${desa}<br>
-            <b>SLS:</b> ${sls}
-          `);
-
-          // 🔥 klik polygon → filter usaha
-          layer.on("click", function(){
-
-            let hasil = allData.filter(d =>
-              d.Kecamatan === kec && d.Desa === desa
-            );
-
-            filteredData = hasil;
-            updateSemua(hasil);
-          });
-
-          layer.on({
-            mouseover: e => e.target.setStyle({weight:2,color:"orange"}),
-            mouseout: e => geoLayer.resetStyle(e.target)
-          });
-        }
-
-      }).addTo(map);
-
-      map.fitBounds(geoLayer.getBounds());
-    });
-}
+    map.fitBounds(geoLayer.getBounds());
+  });
 
 // ================= UPDATE =================
 function updateSemua(data){
@@ -255,19 +229,27 @@ document.querySelectorAll("select").forEach(s => {
 
 function applyFilter(){
   let usaha = document.getElementById("usaha").value;
+  let kreatif = document.getElementById("kreatif").value;
+  let visibilitas = document.getElementById("visibilitas").value;
+  let produksi = document.getElementById("produksi").value;
+  let distribusi = document.getElementById("distribusi").value;
+  let produk = document.getElementById("produk").value;
 
-  let filtered = allData.filter(d =>
-    usaha === "all" || d[fieldMap.usaha] === usaha
-  );
+  let filtered = allData.filter(d => {
+    return (usaha === "all" || d[fieldMap.usaha] === usaha) &&
+           (kreatif === "all" || d[fieldMap.kreatif] === kreatif) &&
+           (visibilitas === "all" || d[fieldMap.visibilitas] === visibilitas) &&
+           (produksi === "all" || d[fieldMap.produksi] === produksi) &&
+           (distribusi === "all" || d[fieldMap.distribusi] === distribusi) &&
+           (produk === "all" || d[fieldMap.produk] === produk);
+  });
 
-  filteredData = filtered;
   updateSemua(filtered);
 }
 
 // ================= RESET =================
 function resetFilter(){
   document.querySelectorAll("select").forEach(s => s.value="all");
-  filteredData = allData;
   updateSemua(allData);
 }
 
@@ -285,10 +267,6 @@ function isiDropdown(data, field, id){
     select.appendChild(opt);
   });
 }
-
-// load default layer
-gantiLayer();
-
 </script>
 
 </body>
