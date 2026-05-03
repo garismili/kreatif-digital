@@ -5,6 +5,8 @@
   <meta charset="utf-8" />
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  
+  
 
   <style>
     body { margin:0; font-family:Arial; background:#f5f6fa; }
@@ -101,6 +103,33 @@
       font-weight:bold;
       display:inline-block;
     }
+    .map-stats-wrapper{
+  display:flex;
+  gap:10px;
+  align-items:stretch;
+}
+
+#map{
+  flex:2;
+  height:500px;
+}
+
+#statsPanel{
+  flex:1;
+  background:white;
+  border-radius:10px;
+  padding:10px;
+  height:500px;
+  overflow:auto;
+}
+
+.stat-box{
+  background:#f1f2f6;
+  padding:10px;
+  margin-bottom:10px;
+  border-radius:8px;
+  font-size:14px;
+}
   </style>
 </head>
 
@@ -129,6 +158,7 @@
       <select id="produk"><option value="all">Produk Final</option></select>
       <select id="sumber"><option value="all">Sumber</option></select>
       <select id="kesimpulan"><option value="all">Kesimpulan</option></select>
+      <select id="cek"><option value="all">Cek</option></select>
 
     </div>
 
@@ -137,7 +167,41 @@
     Jumlah data: <b id="jumlah">0</b>
   </div>
 
+  <div class="map-stats-wrapper">
+
   <div id="map"></div>
+
+  <div id="statsPanel">
+    <h3>📊 Statistik</h3>
+
+    <div class="stat-box">
+      <b>Total Data:</b>
+      <div id="statTotal">0</div>
+    </div>
+
+    <div class="stat-box">
+      <b>Usaha Terbanyak:</b>
+      <div id="statUsaha">-</div>
+    </div>
+
+    <div class="stat-box">
+      <b>Kesimpulan:</b>
+      <div id="statKesimpulan">-</div>
+    </div>
+
+    <div class="stat-box">
+      <b>Kreatif Dominan:</b>
+      <div id="statKreatif">-</div>
+    </div>
+
+      <div class="stat-box">
+      <b>Cek:</b>
+      <div id="statCek">-</div>
+    </div>
+
+  </div>
+
+</div>
 
   <table>
     <thead>
@@ -146,7 +210,6 @@
         <th>Usaha</th>
         <th>KBLI</th>
         <th>Alamat</th>
-        <th>Kontak</th>
         <th>WA</th>
         <th>Maps</th>
 
@@ -158,7 +221,6 @@
         <th>Bangunan</th>
         <th>Input</th>
         <th>Person</th>
-
         <th>Cek</th>
         <th>IDSBR</th>
         <th>Media</th>
@@ -182,7 +244,7 @@ var geoLayer;
 let allData = [];
 let filteredData = [];
 let searchQuery = "";
-
+let markerMap = {};
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
 const fieldMap = {
@@ -193,7 +255,8 @@ const fieldMap = {
   distribusi: "Distribusi",
   produk: "Produk",
   sumber: "Sumber",
-  kesimpulan: "Kesimpulan"
+  kesimpulan: "Kesimpulan",
+  cek: "Cek"
 };
 
 const norm = v => (v || "").toLowerCase().trim();
@@ -220,6 +283,7 @@ Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1vTdCuzkPmo5X2upjTiZm
     isiDropdown(allData, fieldMap.produk, "produk");
     isiDropdown(allData, fieldMap.sumber, "sumber");
     isiDropdown(allData, fieldMap.kesimpulan, "kesimpulan");
+    isiDropdown(allData, fieldMap.cek, "cek");
 
     updateSemua(allData);
   }
@@ -300,9 +364,9 @@ function applyFilter(){
 function updateSemua(data){
   tampilkanMarker(data);
   tampilkanTabel(data);
+  updateStat(data);
   document.getElementById("jumlah").innerText = data.length;
 }
-
 function tampilkanMarker(data) {
   usahaLayer.clearLayers();
 
@@ -332,6 +396,9 @@ function tampilkanMarker(data) {
       <b>${item.Nama}</b><br>
       ${item.Usaha}<br><br>
       ${item.Alamat}<br><br>
+      ${item.Kecamatan}<br><br>
+      ${item.Desa}<br><br>
+      ${item.SLS}<br><br>
 
       <b>Cek:</b> ${cek}<br>
       <b>IDSBR:</b> ${idsbr}<br><br>
@@ -346,7 +413,7 @@ function tampilkanMarker(data) {
       weight: 1,
       fillOpacity: 0.9
     }).bindPopup(popup);
-
+markerMap[item.Nama] = marker;
     usahaLayer.addLayer(marker);
   });
 }
@@ -359,9 +426,9 @@ function tampilkanTabel(data){
 
     let wa = d["Hubungi"] || "";
     let maps = d["Maps"] || "";
-    let kontak = d["Kontak"] || "-";
+    
 
-    let cekIcon = (d["Cek"] && d["Cek"].toLowerCase() !== "tidak") ? "✅" : "❌";
+    let cekIcon = cekFormat(d["Cek"]);
 
     let idsbrBadge = d["IDSBR"]
       ? `<span class="idsbr-badge">${d["IDSBR"]}</span>`
@@ -393,7 +460,7 @@ let kesimpulan = d["Kesimpulan"]
       <td>${d.Usaha}</td>
       <td>${d.KBLI || "-"}</td>
       <td>${d.Alamat}</td>
-      <td>${kontak}</td>
+      
 
       <td>${wa ? `<a class="wa-btn" href="https://wa.me/${wa.replace(/[^0-9]/g,'')}" target="_blank">WA</a>` : "-"}</td>
       <td>${maps ? `<a class="map-btn" href="${maps}" target="_blank">📍</a>` : "-"}</td>
@@ -413,7 +480,16 @@ let kesimpulan = d["Kesimpulan"]
       <td>${kesimpulan}</td>
     `;
 
-    row.onclick = () => map.setView([d.Lat, d.Long], 15);
+    row.onclick = () => {
+
+  map.setView([d.Lat, d.Long], 17);
+
+  let m = markerMap[d.Nama];
+
+  if(m){
+    m.openPopup();
+  }
+};
     tbody.appendChild(row);
   });
 }
@@ -432,7 +508,15 @@ function iconMedia(val){
 
   return "🔗";
 }
+function cekFormat(v){
+  v = (v || "").toLowerCase().trim();
 
+  if(v === "sudah") return "🟢Sudah";
+  if(v === "belum") return "🔴Belum";
+  if(v === "" || v === "-") return "⚪Kosong";
+
+  return v;
+}
 function iconMediaLink(val){
   if(!val) return "-";
 
@@ -442,7 +526,42 @@ function iconMediaLink(val){
 
   return `<a href="${val}" target="_blank" style="text-decoration:none">${icon}</a>`;
 }
+function updateStat(data){
 
+  document.getElementById("statTotal").innerText = data.length;
+
+  // fungsi bantu hitung mode
+  function mode(field){
+    let count = {};
+    data.forEach(d => {
+      let v = d[field] || "-";
+      count[v] = (count[v] || 0) + 1;
+    });
+
+    let maxKey = "-";
+    let maxVal = 0;
+
+    for(let k in count){
+      if(count[k] > maxVal){
+        maxVal = count[k];
+        maxKey = k;
+      }
+    }
+
+    return maxKey;
+  }
+
+  document.getElementById("statUsaha").innerText =
+    mode("Usaha");
+
+  document.getElementById("statKesimpulan").innerText =
+    mode("Kesimpulan");
+
+  document.getElementById("statKreatif").innerText =
+    mode("Kreatif");
+  document.getElementById("statCek").innerText =
+    mode("Cek");
+}
 function resetFilter(){
   document.querySelectorAll("select").forEach(s => s.value="all");
   document.getElementById("searchBox").value = "";
