@@ -80,7 +80,7 @@
       margin-left:4px;
     }
 
-    .cek-icon{ font: size 12px; text-align:center; }
+    .cek-icon{ font-size: 12px; text-align:center; }
 
     .idsbr-badge{
       display:inline-block;
@@ -180,6 +180,26 @@ tr:hover {
 table {
   font-size: 12px;
 }
+#pivotTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+#pivotTable th {
+  background: #2d3436;
+  color: white;
+  position: sticky;
+  top: 0;
+}
+
+#pivotTable td {
+  text-align: center;
+}
+
+#pivotTable tr:nth-child(even) {
+  background: #f8f9fa;
+}
   </style>
 </head>
 
@@ -273,8 +293,28 @@ table {
 
     
 
-    <div class="stat-box chart-box">
-    <canvas id="chartUtama"></canvas>
+<div class="stat-box chart-box">
+<canvas id="chartUtama"></canvas>
+</div>
+
+<div class="stat-box">
+  <b>📊 Pivot Table</b>
+  <div class="chart-control">
+    <div>
+      <small>Baris</small><br>
+      <select id="pivotRow"></select>
+    </div>
+
+    <div>
+      <small>Kolom</small><br>
+      <select id="pivotCol"></select>
+    </div>
+  </div>
+
+  <div style="overflow:auto; margin-top:10px;">
+    <table id="pivotTable"></table>
+  </div>
+</div>
     </div>
     </div>
 
@@ -364,6 +404,7 @@ Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1vTdCuzkPmo5X2upjTiZm
     isiDropdown(allData, fieldMap.kesimpulan, "kesimpulan");
     isiDropdown(allData, fieldMap.cek, "cek");
     isiChartDropdown();
+    isiPivotDropdown();
     updateSemua(allData);
   }
 });
@@ -392,6 +433,96 @@ function isiChartDropdown(){
   select.value = "Usaha"; // default
 }
 
+function isiPivotDropdown(){
+
+  let row = document.getElementById("pivotRow");
+  let col = document.getElementById("pivotCol");
+
+  row.innerHTML = "";
+  col.innerHTML = "";
+
+  Object.values(fieldMap).forEach(field => {
+
+    let opt1 = document.createElement("option");
+    opt1.value = field;
+    opt1.text = field;
+    row.appendChild(opt1);
+
+    let opt2 = document.createElement("option");
+    opt2.value = field;
+    opt2.text = field;
+    col.appendChild(opt2);
+  });
+
+  row.value = "Usaha";
+  col.value = "Kesimpulan";
+}
+function hitungPivot(data, rowField, colField){
+
+  let pivot = {};
+
+  data.forEach(d => {
+
+    let r = d[rowField] || "-";
+    let c = d[colField] || "-";
+
+    if(!pivot[r]) pivot[r] = {};
+    if(!pivot[r][c]) pivot[r][c] = 0;
+
+    pivot[r][c]++;
+  });
+
+  return pivot;
+}
+function tampilkanPivot(data){
+
+  let rowField = document.getElementById("pivotRow").value;
+  let colField = document.getElementById("pivotCol").value;
+
+  let pivot = hitungPivot(data, rowField, colField);
+
+  let table = document.getElementById("pivotTable");
+  table.innerHTML = "";
+
+  let colKeys = new Set();
+
+  Object.values(pivot).forEach(row => {
+    Object.keys(row).forEach(c => colKeys.add(c));
+  });
+
+  colKeys = [...colKeys];
+
+  // 🔥 SORT ROW (terbesar di atas)
+  let sortedRows = Object.keys(pivot).sort((a,b)=>{
+    let sumA = Object.values(pivot[a]).reduce((x,y)=>x+y,0);
+    let sumB = Object.values(pivot[b]).reduce((x,y)=>x+y,0);
+    return sumB - sumA;
+  });
+
+  // ✅ HEADER (SUDAH BENAR POSISINYA)
+  let thead = "<tr><th>"+rowField+"</th>";
+  colKeys.forEach(c => thead += "<th>"+c+"</th>");
+  thead += "<th>Total</th></tr>";
+
+  // BODY
+  let tbody = "";
+
+  sortedRows.forEach(r => {
+
+    let totalRow = 0;
+    tbody += "<tr><td><b>"+r+"</b></td>";
+
+    colKeys.forEach(c => {
+      let val = pivot[r][c] || 0;
+      totalRow += val;
+      tbody += "<td>"+val+"</td>";
+    });
+
+    tbody += "<td><b>"+totalRow+"</b></td></tr>";
+  });
+
+  table.innerHTML = thead + tbody;
+}
 function hitungDistribusi(data, field){
   let count = {};
 
@@ -439,8 +570,6 @@ function updateChartUtama(data){
     }
   });
 }
-
-
 
 function gantiLayer(){
 
@@ -514,6 +643,7 @@ function updateSemua(data){
   tampilkanTabel(data);
   updateStat(data);
   updateChartUtama(data); // 🔥 penting
+  tampilkanPivot(data);
   document.getElementById("jumlah").innerText = data.length;
 }
 function tampilkanMarker(data) {
@@ -746,6 +876,11 @@ document.getElementById("chartType")
   .addEventListener("change", function(){
     updateChartUtama(filteredData);
 });
+document.getElementById("pivotRow")
+  .addEventListener("change", () => tampilkanPivot(filteredData));
+
+document.getElementById("pivotCol")
+  .addEventListener("change", () => tampilkanPivot(filteredData));
 
 gantiLayer();
 
